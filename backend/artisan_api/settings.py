@@ -64,14 +64,37 @@ DATABASES = {
 
 AUTH_USER_MODEL = 'artisans.Artisan'
 
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication', 
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly', 
     ),
 }
 
+# REST_FRAMEWORK = {
+#     'DEFAULT_AUTHENTICATION_CLASSES': (
+#         'rest_framework_simplejwt.authentication.JWTAuthentication',
+#         'rest_framwork.authentication.SessionAuthentication'
+#         'rest_framwork.authentication.BasicAuthentication'
+#         'rest_framwork.authentication.TokenAuthentication'
+#     ),
+#     'DEFAULT_PERMISSION_CLASSES': (
+#         'rest_framwork.permissions.IsAuthenticatedOrReadOnly'
+#     ),
+# }
+
+# SIMPLE_JWT = {
+#     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+# }
+
+# Ajoutez cette clé dans la configuration SIMPLE_JWT
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    # Indique d'utiliser 'phone' pour obtenir le token
+    'TOKEN_OBTAIN_PAIR_SERIALIZER': 'artisans.serializers.TokenObtainPairSerializer',
 }
 
 # CORS sécurisé

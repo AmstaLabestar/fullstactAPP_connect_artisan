@@ -9,8 +9,10 @@ function App() {
       <Routes>
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        {/* Le Dashboard est la route protégée */}
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="*" element={<Login />} />
+        {/* Redirection par défaut vers la page de connexion */}
+        <Route path="*" element={<Login />} /> 
       </Routes>
     </Router>
   );

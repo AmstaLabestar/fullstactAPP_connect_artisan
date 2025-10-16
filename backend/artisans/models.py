@@ -15,3 +15,14 @@ class Artisan(AbstractUser):
 
     def __str__(self):
         return f"{self.username or self.phone} - {self.type_metier}"
+
+
+class Realisation(models.Model):
+    artisan = models.ForeignKey(Artisan, related_name='realisations', on_delete=models.CASCADE)
+    titre = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    image = models.ImageField(upload_to='realisations/')
+    date_realisation = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return self.titre
