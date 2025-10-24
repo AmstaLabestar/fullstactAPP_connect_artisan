@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -5,9 +6,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "django-insecure-123456789"
 DEBUG = True
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]  # ✅ en dev, tu peux autoriser tout. En prod, restreins ça.
 
+# ===============================
+#  APPS
+# ===============================
 INSTALLED_APPS = [
+    # Django core
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -19,13 +24,17 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'django_filters',
 
     # local apps
     'artisans',
 ]
 
+# ===============================
+#  MIDDLEWARE
+# ===============================
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # 🔹 doit être tout en haut
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -37,6 +46,9 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'artisan_api.urls'
 
+# ===============================
+#  TEMPLATES
+# ===============================
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -55,6 +67,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'artisan_api.wsgi.application'
 
+# ===============================
+#  DATABASE
+# ===============================
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -62,53 +77,70 @@ DATABASES = {
     }
 }
 
+# ===============================
+#  UTILISATEUR PERSONNALISÉ
+# ===============================
 AUTH_USER_MODEL = 'artisans.Artisan'
 
-
+# ===============================
+#  REST FRAMEWORK
+# ===============================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication', 
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly', 
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ),
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',
+    },
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',  # ✅ corrigé
+    'PAGE_SIZE': 20,
 }
 
-# REST_FRAMEWORK = {
-#     'DEFAULT_AUTHENTICATION_CLASSES': (
-#         'rest_framework_simplejwt.authentication.JWTAuthentication',
-#         'rest_framwork.authentication.SessionAuthentication'
-#         'rest_framwork.authentication.BasicAuthentication'
-#         'rest_framwork.authentication.TokenAuthentication'
-#     ),
-#     'DEFAULT_PERMISSION_CLASSES': (
-#         'rest_framwork.permissions.IsAuthenticatedOrReadOnly'
-#     ),
-# }
-
-# SIMPLE_JWT = {
-#     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-# }
-
-# Ajoutez cette clé dans la configuration SIMPLE_JWT
+# ===============================
+#  SIMPLE JWT
+# ===============================
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    # Indique d'utiliser 'phone' pour obtenir le token
-    'TOKEN_OBTAIN_PAIR_SERIALIZER': 'artisans.serializers.TokenObtainPairSerializer',
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=3),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    # 🔹 serializer personnalisé pour login par téléphone
+    'TOKEN_OBTAIN_PAIR_SERIALIZER': 'artisans.serializers.CustomTokenObtainPairSerializer',
 }
 
-# CORS sécurisé
-CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",   # Vite
-    "http://127.0.0.1:5173",
-]
+# ===============================
+#  CORS
+# ===============================
+CORS_ALLOW_ALL_ORIGINS = True  # ✅ En dev, tu peux le laisser sur True
+# Si tu veux être strict, commente la ligne au-dessus et décommente ceci :
+# CORS_ALLOW_ALL_ORIGINS = False
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",
+#     "http://127.0.0.1:5173",
+# ]
 
+# ===============================
+#  FICHIERS STATIQUES & MÉDIAS
+# ===============================
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# ===============================
+#  BACKENDS D’AUTHENTIFICATION
+# ===============================
 AUTHENTICATION_BACKENDS = [
-    'artisans.auth_backend.PhoneAuthBackend',
-    'django.contrib.auth.backends.ModelBackend', 
+    'artisans.auth_backend.PhoneAuthBackend',  # ✅ pour la connexion via téléphone
+    'django.contrib.auth.backends.ModelBackend',  # fallback classique
 ]

@@ -8,6 +8,12 @@ class PhoneAuthBackend(ModelBackend):
         except Artisan.DoesNotExist:
             return None
 
-        if user.check_password(password):
+        if user.check_password(password) and user.is_active:
             return user
         return None
+    
+    def get_user(self, user_id):
+        try:
+            return Artisan.objects.get(pk=user_id)
+        except Artisan.DoesNotExist:
+            return None
