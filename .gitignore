@@ -33,3 +33,7 @@ frontend/.env.*
 Thumbs.db
 .vscode/
 .idea/
+
+# Database
+*.sqlite3
+backend/db.sqlite3
