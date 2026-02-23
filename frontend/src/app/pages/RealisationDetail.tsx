@@ -1,33 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Calendar, Heart, MessageCircle, Phone, Send } from 'lucide-react';
+import { ArrowLeft, Calendar, Heart, MessageCircle, Phone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { buildWhatsAppLink } from '../services/whatsapp';
 import { Artisan, Realisation } from '../types';
+import { CommentSection } from '../components/comments/CommentSection';
 import { WhatsAppStickyCTA } from '../components/mobile/WhatsAppStickyCTA';
 import { Button } from '../components/ui/button';
-import { Textarea } from '../components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent } from '../components/ui/card';
-import { Separator } from '../components/ui/separator';
 import { WhatsAppButton } from '../components/ui/WhatsAppButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
 
 export const RealisationDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { artisan, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [realisation, setRealisation] = useState<Realisation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<any>(null);
-  const [commentText, setCommentText] = useState('');
-  const [submittingComment, setSubmittingComment] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
+  const [commentComposerSignal, setCommentComposerSignal] = useState(0);
   const [artisanPhone, setArtisanPhone] = useState('');
 
   useEffect(() => {
@@ -40,6 +37,7 @@ export const RealisationDetail: React.FC = () => {
     try {
       const data = await api.get<Realisation>(`/realisations/${id}/`);
       setRealisation(data);
+      setCommentCount(data.commentaires_count);
       setArtisanPhone(data.artisan_phone || '');
       setError(null);
 
@@ -60,49 +58,26 @@ export const RealisationDetail: React.FC = () => {
   };
 
   const handleLike = async () => {
-    if (!isAuthenticated) {
-      toast.error("Vous devez etre connecte pour aimer une realisation");
-      return;
-    }
-
     try {
       await api.post(`/realisations/${id}/like/`);
-      loadRealisation();
+      await loadRealisation();
       toast.success('Votre action a ete enregistree');
     } catch (error: any) {
       if (error.message !== 'Session expiree') {
-        toast.error("Erreur lors de l'action");
+        toast.error("Erreur lors de l'enregistrement du like");
       }
     }
   };
 
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!isAuthenticated) {
-      toast.error('Vous devez etre connecte pour commenter');
+  const handleCommentAction = () => {
+    if (!realisation) {
       return;
     }
-
-    if (!commentText.trim()) {
-      return;
+    const section = document.getElementById(`comments-${realisation.id}`);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-
-    setSubmittingComment(true);
-    try {
-      await api.post(`/realisations/${id}/commentaires/`, {
-        auteur_nom: artisan?.username || 'Visiteur',
-        texte: commentText,
-      });
-      setCommentText('');
-      loadRealisation();
-      toast.success('Commentaire ajoute avec succes');
-    } catch (error) {
-      console.error('Error submitting comment:', error);
-      toast.error("Erreur lors de l'envoi du commentaire");
-    } finally {
-      setSubmittingComment(false);
-    }
+    setCommentComposerSignal((previousSignal) => previousSignal + 1);
   };
 
   if (loading) {
@@ -187,83 +162,22 @@ export const RealisationDetail: React.FC = () => {
                     <Heart className={`h-4 w-4 ${realisation.is_liked ? 'fill-current' : ''}`} />
                     {realisation.likes_count} J aime
                   </Button>
+                  <Button variant="outline" className="h-10" onClick={handleCommentAction}>
+                    <MessageCircle className="h-4 w-4" />
+                    Commenter
+                  </Button>
                   <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                     <MessageCircle className="h-4 w-4" />
-                    {realisation.commentaires_count} commentaire
-                    {realisation.commentaires_count > 1 ? 's' : ''}
+                    {commentCount} commentaire{commentCount > 1 ? 's' : ''}
                   </span>
                 </div>
               </CardContent>
             </Card>
-
-            <Card className="border-border/70 bg-card/95">
-              <CardContent className="space-y-5 p-5 sm:p-6">
-                <h2 className="text-3xl leading-tight">Commentaires</h2>
-
-                {isAuthenticated ? (
-                  <form onSubmit={handleSubmitComment} className="space-y-3">
-                    <Textarea
-                      placeholder="Ajouter un commentaire..."
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      disabled={submittingComment}
-                      rows={3}
-                    />
-                    <Button type="submit" disabled={submittingComment || !commentText.trim()}>
-                      <Send className="h-4 w-4" />
-                      {submittingComment ? 'Envoi...' : 'Envoyer'}
-                    </Button>
-                  </form>
-                ) : (
-                  <Card className="border-border/70 bg-muted/20">
-                    <CardContent className="p-4 text-center">
-                      <p className="mb-3 text-sm text-muted-foreground">
-                        Vous devez etre connecte pour commenter.
-                      </p>
-                      <Button asChild>
-                        <Link to="/login">Se connecter</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-
-                <Separator />
-
-                {realisation.commentaires && realisation.commentaires.length > 0 ? (
-                  <div className="space-y-4">
-                    {realisation.commentaires.map((comment) => (
-                      <Card key={comment.id} className="border-border/70">
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-3">
-                            <Avatar className="h-10 w-10 border border-border/60">
-                              <AvatarFallback>
-                                {comment.auteur_nom.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-medium">{comment.auteur_nom}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatDistanceToNow(new Date(comment.created_at), {
-                                    addSuffix: true,
-                                    locale: fr,
-                                  })}
-                                </span>
-                              </div>
-                              <p className="mt-2 whitespace-pre-wrap text-sm">{comment.texte}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="py-6 text-center text-sm text-muted-foreground">
-                    Aucun commentaire pour le moment.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <CommentSection
+              postId={realisation.id}
+              openComposerSignal={commentComposerSignal}
+              onCountChange={setCommentCount}
+            />
           </div>
 
           <aside className="lg:col-span-1">

@@ -51,9 +51,14 @@ export const mockRealisations = [
     commentaires: [
       {
         id: 1,
+        user_id: null,
         auteur_nom: 'Pierre Durant',
         texte: 'Excellent travail !',
         created_at: new Date().toISOString(),
+        likes_count: 0,
+        is_liked: false,
+        can_edit: false,
+        can_delete: false,
       },
     ],
   },
