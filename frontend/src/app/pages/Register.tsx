@@ -40,7 +40,7 @@ export const Register: React.FC = () => {
   const loadMetiers = async () => {
     try {
       const data = await api.get<Metier[] | PaginatedResponse<Metier>>('/metiers/');
-      setMetiers(Array.isArray(data) ? data : data.results || []);
+      setMetiers(Array.isArray(data) ? data : Array.isArray(data.results) ? data.results : []);
     } catch (err) {
       console.error('Error loading metiers:', err);
       toast.error('Erreur lors du chargement des métiers');

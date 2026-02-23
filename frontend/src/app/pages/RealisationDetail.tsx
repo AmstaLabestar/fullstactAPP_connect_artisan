@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { ArrowLeft, Calendar, Heart, MessageCircle, Send } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Realisation } from '../types';
@@ -11,10 +15,6 @@ import { Card, CardContent } from '../components/ui/card';
 import { Separator } from '../components/ui/separator';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
-import { Heart, MessageCircle, Calendar, Send, ArrowLeft } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { toast } from 'sonner';
 
 export const RealisationDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -47,26 +47,26 @@ export const RealisationDetail: React.FC = () => {
 
   const handleLike = async () => {
     if (!isAuthenticated) {
-      toast.error('Vous devez être connecté pour aimer une réalisation');
+      toast.error("Vous devez etre connecte pour aimer une realisation");
       return;
     }
 
     try {
       await api.post(`/realisations/${id}/like/`);
       loadRealisation();
-      toast.success('Votre action a été enregistrée');
+      toast.success('Votre action a ete enregistree');
     } catch (error: any) {
-      if (error.message !== 'Session expirée') {
-        toast.error('Erreur lors de l\'action');
+      if (error.message !== 'Session expiree') {
+        toast.error("Erreur lors de l'action");
       }
     }
   };
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!isAuthenticated) {
-      toast.error('Vous devez être connecté pour commenter');
+      toast.error('Vous devez etre connecte pour commenter');
       return;
     }
 
@@ -82,10 +82,10 @@ export const RealisationDetail: React.FC = () => {
       });
       setCommentText('');
       loadRealisation();
-      toast.success('Commentaire ajouté avec succès');
+      toast.success('Commentaire ajoute avec succes');
     } catch (error) {
       console.error('Error submitting comment:', error);
-      toast.error('Erreur lors de l\'envoi du commentaire');
+      toast.error("Erreur lors de l'envoi du commentaire");
     } finally {
       setSubmittingComment(false);
     }
@@ -95,7 +95,7 @@ export const RealisationDetail: React.FC = () => {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
-          <LoadingSpinner text="Chargement de la réalisation..." />
+          <LoadingSpinner text="Chargement de la realisation..." />
         </div>
       </div>
     );
@@ -105,9 +105,9 @@ export const RealisationDetail: React.FC = () => {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
-          <ErrorMessage error={error || 'Réalisation introuvable'} />
+          <ErrorMessage error={error || 'Realisation introuvable'} />
           <Button onClick={() => navigate('/realisations')} className="mt-4">
-            Retour aux réalisations
+            Retour aux realisations
           </Button>
         </div>
       </div>
@@ -116,175 +116,178 @@ export const RealisationDetail: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <Button
-          variant="ghost"
-          className="mb-6"
-          onClick={() => navigate(-1)}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+      <div className="container mx-auto px-4 py-6 pb-32 sm:py-8 sm:pb-36 md:pb-8">
+        <Button variant="ghost" className="mb-4 h-10 px-3" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4" />
           Retour
         </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Image */}
-            <div className="rounded-lg overflow-hidden">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
+          <div className="space-y-6 lg:col-span-2">
+            <Card className="overflow-hidden border-border/70">
               <img
                 src={realisation.image}
                 alt={realisation.titre}
-                className="w-full h-auto object-cover max-h-[600px]"
+                className="max-h-[620px] w-full object-cover"
               />
-            </div>
+            </Card>
 
-            {/* Title and Description */}
-            <div>
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h1 className="text-3xl font-bold mb-2">{realisation.titre}</h1>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                      Publié {formatDistanceToNow(new Date(realisation.created_at), {
+            <Card className="border-border/70 bg-card/95">
+              <CardContent className="space-y-5 p-5 sm:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <h1 className="text-4xl leading-tight">{realisation.titre}</h1>
+                    <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      Publie{' '}
+                      {formatDistanceToNow(new Date(realisation.created_at), {
                         addSuffix: true,
                         locale: fr,
                       })}
-                    </span>
-                  </div>
-                </div>
-                {realisation.is_available && (
-                  <Badge variant="secondary" className="bg-secondary/10 text-secondary">
-                    Disponible
-                  </Badge>
-                )}
-              </div>
-
-              <p className="text-lg whitespace-pre-wrap">{realisation.description}</p>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-4">
-              <Button
-                variant={realisation.is_liked ? 'default' : 'outline'}
-                onClick={handleLike}
-              >
-                <Heart className={`mr-2 h-4 w-4 ${realisation.is_liked ? 'fill-current' : ''}`} />
-                {realisation.likes_count} J'aime
-              </Button>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MessageCircle className="h-4 w-4" />
-                <span>{realisation.commentaires_count} commentaire{realisation.commentaires_count > 1 ? 's' : ''}</span>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Comments Section */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-semibold">Commentaires</h2>
-
-              {/* Comment Form */}
-              {isAuthenticated ? (
-                <form onSubmit={handleSubmitComment} className="space-y-3">
-                  <Textarea
-                    placeholder="Ajouter un commentaire..."
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    disabled={submittingComment}
-                    rows={3}
-                  />
-                  <Button type="submit" disabled={submittingComment || !commentText.trim()}>
-                    <Send className="mr-2 h-4 w-4" />
-                    {submittingComment ? 'Envoi...' : 'Envoyer'}
-                  </Button>
-                </form>
-              ) : (
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-muted-foreground mb-3">
-                      Vous devez être connecté pour commenter
                     </p>
-                    <Button asChild>
-                      <Link to="/login">Se connecter</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Comments List */}
-              {realisation.commentaires && realisation.commentaires.length > 0 ? (
-                <div className="space-y-4">
-                  {realisation.commentaires.map((comment) => (
-                    <Card key={comment.id}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarFallback>
-                              {comment.auteur_nom.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium">{comment.auteur_nom}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(new Date(comment.created_at), {
-                                  addSuffix: true,
-                                  locale: fr,
-                                })}
-                              </span>
-                            </div>
-                            <p className="text-sm whitespace-pre-wrap">{comment.texte}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  </div>
+                  {realisation.is_available ? (
+                    <Badge className="rounded-full bg-secondary text-secondary-foreground">
+                      Disponible
+                    </Badge>
+                  ) : null}
                 </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  Aucun commentaire pour le moment
+
+                <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground/95">
+                  {realisation.description}
                 </p>
-              )}
-            </div>
-          </div>
 
-          {/* Sidebar - Artisan Info */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-20">
-              <CardContent className="p-6 space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-4">Artisan</h3>
-                  <Link
-                    to={`/artisans/${realisation.artisan}`}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    variant={realisation.is_liked ? 'default' : 'outline'}
+                    className="h-10"
+                    onClick={handleLike}
                   >
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={realisation.artisan_photo || undefined} />
-                      <AvatarFallback>
-                        {realisation.artisan_username.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{realisation.artisan_username}</p>
-                      <p className="text-sm text-muted-foreground">Voir le profil</p>
-                    </div>
-                  </Link>
+                    <Heart className={`h-4 w-4 ${realisation.is_liked ? 'fill-current' : ''}`} />
+                    {realisation.likes_count} J aime
+                  </Button>
+                  <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <MessageCircle className="h-4 w-4" />
+                    {realisation.commentaires_count} commentaire
+                    {realisation.commentaires_count > 1 ? 's' : ''}
+                  </span>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/70 bg-card/95">
+              <CardContent className="space-y-5 p-5 sm:p-6">
+                <h2 className="text-3xl leading-tight">Commentaires</h2>
+
+                {isAuthenticated ? (
+                  <form onSubmit={handleSubmitComment} className="space-y-3">
+                    <Textarea
+                      placeholder="Ajouter un commentaire..."
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      disabled={submittingComment}
+                      rows={3}
+                    />
+                    <Button type="submit" disabled={submittingComment || !commentText.trim()}>
+                      <Send className="h-4 w-4" />
+                      {submittingComment ? 'Envoi...' : 'Envoyer'}
+                    </Button>
+                  </form>
+                ) : (
+                  <Card className="border-border/70 bg-muted/20">
+                    <CardContent className="p-4 text-center">
+                      <p className="mb-3 text-sm text-muted-foreground">
+                        Vous devez etre connecte pour commenter.
+                      </p>
+                      <Button asChild>
+                        <Link to="/login">Se connecter</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
 
                 <Separator />
 
-                <div>
-                  <h3 className="font-semibold mb-3">Actions</h3>
-                  <Button className="w-full" asChild>
-                    <Link to={`/artisans/${realisation.artisan}`}>
-                      Voir plus de réalisations
-                    </Link>
+                {realisation.commentaires && realisation.commentaires.length > 0 ? (
+                  <div className="space-y-4">
+                    {realisation.commentaires.map((comment) => (
+                      <Card key={comment.id} className="border-border/70">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-10 w-10 border border-border/60">
+                              <AvatarFallback>
+                                {comment.auteur_nom.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-medium">{comment.auteur_nom}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatDistanceToNow(new Date(comment.created_at), {
+                                    addSuffix: true,
+                                    locale: fr,
+                                  })}
+                                </span>
+                              </div>
+                              <p className="mt-2 whitespace-pre-wrap text-sm">{comment.texte}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    Aucun commentaire pour le moment.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <aside className="lg:col-span-1">
+            <Card className="border-border/70 bg-card/95 lg:sticky lg:top-20">
+              <CardContent className="space-y-5 p-5 sm:p-6">
+                <h3 className="text-2xl">Artisan</h3>
+
+                <Link
+                  to={`/artisans/${realisation.artisan}`}
+                  className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 transition-colors hover:bg-muted/40"
+                >
+                  <Avatar className="h-12 w-12 border border-border/60">
+                    <AvatarImage src={realisation.artisan_photo || undefined} />
+                    <AvatarFallback>
+                      {realisation.artisan_username.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{realisation.artisan_username}</p>
+                    <p className="text-xs text-muted-foreground">Voir le profil artisan</p>
+                  </div>
+                </Link>
+
+                <div className="space-y-2">
+                  <Button className="h-11 w-full" asChild>
+                    <Link to={`/artisans/${realisation.artisan}`}>Demander un devis</Link>
+                  </Button>
+                  <Button variant="outline" className="h-11 w-full" asChild>
+                    <Link to={`/artisans/${realisation.artisan}`}>Voir ses realisations</Link>
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </aside>
+        </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-16 z-40 border-t border-border/70 bg-card/95 p-3 backdrop-blur md:hidden">
+        <div className="mx-auto grid max-w-3xl grid-cols-2 gap-2">
+          <Button variant="outline" className="h-11 text-sm" asChild>
+            <Link to={`/artisans/${realisation.artisan}`}>Voir artisan</Link>
+          </Button>
+          <Button className="h-11 text-sm" asChild>
+            <Link to={`/artisans/${realisation.artisan}`}>Demander un devis</Link>
+          </Button>
         </div>
       </div>
     </div>

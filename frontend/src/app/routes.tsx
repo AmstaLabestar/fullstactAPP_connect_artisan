@@ -12,12 +12,12 @@ import { MesRealisations } from './pages/MesRealisations';
 import { RealisationForm } from './pages/RealisationForm';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { NotFound } from './components/NotFound';
-import { Layout } from './components/Layout';
+import { AppShell } from './components/AppShell';
 
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <Layout><Home /></Layout>,
+    element: <AppShell><Home /></AppShell>,
   },
   {
     path: '/login',
@@ -29,68 +29,68 @@ export const router = createBrowserRouter([
   },
   {
     path: '/realisations',
-    element: <Layout><RealisationsList /></Layout>,
+    element: <AppShell><RealisationsList /></AppShell>,
   },
   {
     path: '/realisations/:id',
-    element: <Layout><RealisationDetail /></Layout>,
+    element: <AppShell><RealisationDetail /></AppShell>,
   },
   {
     path: '/artisans',
-    element: <Layout><ArtisansList /></Layout>,
+    element: <AppShell><ArtisansList /></AppShell>,
   },
   {
     path: '/artisans/:id',
-    element: <Layout><ArtisanDetail /></Layout>,
+    element: <AppShell><ArtisanDetail /></AppShell>,
   },
   {
     path: '/dashboard',
     element: (
-      <Layout>
+      <AppShell>
         <ProtectedRoute>
           <Dashboard />
         </ProtectedRoute>
-      </Layout>
+      </AppShell>
     ),
   },
   {
     path: '/profil',
     element: (
-      <Layout>
+      <AppShell>
         <ProtectedRoute>
           <Profile />
         </ProtectedRoute>
-      </Layout>
+      </AppShell>
     ),
   },
   {
     path: '/mes-realisations',
     element: (
-      <Layout>
+      <AppShell>
         <ProtectedRoute>
           <MesRealisations />
         </ProtectedRoute>
-      </Layout>
+      </AppShell>
     ),
   },
   {
     path: '/mes-realisations/nouvelle',
     element: (
-      <Layout>
+      <AppShell>
         <ProtectedRoute>
           <RealisationForm />
         </ProtectedRoute>
-      </Layout>
+      </AppShell>
     ),
   },
   {
     path: '/mes-realisations/:id/modifier',
     element: (
-      <Layout>
+      <AppShell>
         <ProtectedRoute>
           <RealisationForm />
         </ProtectedRoute>
-      </Layout>
+      </AppShell>
     ),
   },
   {

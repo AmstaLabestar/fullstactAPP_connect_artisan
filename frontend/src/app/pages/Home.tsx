@@ -1,18 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router';
+import {
+  ArrowRight,
+  Hammer,
+  Image as ImageIcon,
+  Phone,
+  Search,
+  ShieldCheck,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '../services/api';
-import { Realisation, PaginatedResponse } from '../types';
+import { PaginatedResponse, Realisation } from '../types';
 import { Button } from '../components/ui/button';
 import { RealisationCard } from '../components/RealisationCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { EmptyState } from '../components/EmptyState';
-import { ArrowRight, Hammer, Users, Image as ImageIcon } from 'lucide-react';
-import { toast } from 'sonner';
+
+const QUICK_STEPS = [
+  {
+    icon: Search,
+    title: '1. Trouvez',
+    description: 'Choisissez un artisan proche de chez vous selon son metier.',
+  },
+  {
+    icon: ImageIcon,
+    title: '2. Comparez',
+    description: 'Consultez ses realisations pour verifier son style et sa qualite.',
+  },
+  {
+    icon: Phone,
+    title: '3. Contactez',
+    description: 'Appelez ou demandez un devis en quelques secondes.',
+  },
+];
 
 export const Home: React.FC = () => {
   const [realisations, setRealisations] = useState<Realisation[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     loadRealisations();
@@ -21,11 +45,10 @@ export const Home: React.FC = () => {
   const loadRealisations = async () => {
     try {
       const data = await api.get<PaginatedResponse<Realisation>>('/realisations/?page=1');
-      // Prendre seulement les 6 premières pour la page d'accueil
       setRealisations(data.results.slice(0, 6));
     } catch (error) {
       console.error('Error loading realisations:', error);
-      toast.error('Erreur lors du chargement des réalisations');
+      toast.error('Erreur lors du chargement des realisations');
     } finally {
       setLoading(false);
     }
@@ -34,110 +57,114 @@ export const Home: React.FC = () => {
   const handleLike = async (id: number) => {
     try {
       await api.post(`/realisations/${id}/like/`);
-      // Recharger la liste pour mettre à jour le like
       loadRealisations();
-      toast.success('Votre action a été enregistrée');
+      toast.success('Votre action a ete enregistree');
     } catch (error: any) {
-      if (error.message === 'Session expirée') {
-        return; // Le redirect sera géré automatiquement
+      if (error.message === 'Session expiree') {
+        return;
       }
-      toast.error('Vous devez être connecté pour aimer une réalisation');
+      toast.error("Vous devez etre connecte pour aimer une realisation");
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-b from-primary/10 to-background py-20 px-4">
-        <div className="container mx-auto text-center max-w-4xl">
-          <div className="flex justify-center mb-6">
-            <Hammer className="h-16 w-16 text-primary" />
+      <section className="relative overflow-hidden border-b border-border/60 bg-gradient-to-b from-primary/15 via-background to-background">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-16 top-12 h-40 w-40 rounded-full bg-primary/15 blur-3xl" />
+          <div className="absolute -right-8 bottom-4 h-44 w-44 rounded-full bg-secondary/15 blur-3xl" />
+        </div>
+        <div className="container relative mx-auto px-4 py-12 sm:py-16 md:py-20">
+          <div className="mx-auto max-w-4xl text-center">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-card/80 px-4 py-1.5 text-sm text-muted-foreground">
+              <Hammer className="h-4 w-4 text-primary" />
+              Plateforme locale pour trouver votre artisan
+            </div>
+            <h1 className="font-heading text-4xl leading-tight sm:text-5xl md:text-6xl">
+              Le savoir-faire artisanal, proche et accessible
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
+              Decouvrez des artisans de confiance, voyez leurs travaux et contactez-les
+              rapidement pour lancer votre projet.
+            </p>
+            <div className="mt-8 grid gap-3 sm:inline-flex sm:flex-row">
+              <Button size="lg" className="h-12 px-7 text-base" asChild>
+                <Link to="/artisans">
+                  Trouver un artisan
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" className="h-12 px-7 text-base" asChild>
+                <Link to="/realisations">Voir les realisations</Link>
+              </Button>
+            </div>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">
-            Artisan Connect
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Découvrez le savoir-faire des artisans de votre région. 
-            Parcourez leurs réalisations, contactez-les et donnez vie à vos projets.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" asChild>
-              <Link to="/realisations">
-                Voir les réalisations
-                <ArrowRight className="ml-2 h-5 w-5" />
+          <div className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-3 sm:grid-cols-3">
+            {QUICK_STEPS.map((step) => {
+              const Icon = step.icon;
+              return (
+                <div
+                  key={step.title}
+                  className="rounded-2xl border border-border/70 bg-card/85 p-5 text-left shadow-sm"
+                >
+                  <div className="mb-3 inline-flex rounded-xl bg-primary/10 p-2.5">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">{step.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {step.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-border/60 bg-muted/25">
+        <div className="container mx-auto px-4 py-10">
+          <div className="mx-auto flex max-w-5xl flex-col gap-4 rounded-2xl border border-secondary/20 bg-card/90 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="space-y-1">
+              <p className="text-sm font-medium uppercase tracking-wide text-secondary">Confiance</p>
+              <h2 className="text-2xl">Des profils clairs et un contact direct</h2>
+              <p className="text-sm text-muted-foreground">
+                Vous voyez le metier, la localisation et les travaux avant de prendre contact.
+              </p>
+            </div>
+            <Button variant="secondary" size="lg" className="h-12 px-6" asChild>
+              <Link to="/artisans">
+                Demander un devis
+                <ShieldCheck className="h-5 w-5" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link to="/artisans">Trouver un artisan</Link>
-            </Button>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 px-4 bg-muted/30">
-        <div className="container mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">
-            Pourquoi choisir Artisan Connect ?
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <div className="flex justify-center mb-4">
-                <div className="rounded-full bg-primary/10 p-4">
-                  <ImageIcon className="h-8 w-8 text-primary" />
-                </div>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Portfolio riche</h3>
-              <p className="text-muted-foreground">
-                Consultez les réalisations des artisans et trouvez l'inspiration pour vos projets
+      <section className="py-12 sm:py-16">
+        <div className="container mx-auto px-4">
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                Inspiration locale
               </p>
+              <h2 className="mt-1 text-3xl">Realisations recentes</h2>
             </div>
-            <div className="text-center p-6">
-              <div className="flex justify-center mb-4">
-                <div className="rounded-full bg-secondary/10 p-4">
-                  <Users className="h-8 w-8 text-secondary" />
-                </div>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Artisans vérifiés</h3>
-              <p className="text-muted-foreground">
-                Accédez aux profils détaillés des artisans avec leurs spécialités et coordonnées
-              </p>
-            </div>
-            <div className="text-center p-6">
-              <div className="flex justify-center mb-4">
-                <div className="rounded-full bg-primary/10 p-4">
-                  <Hammer className="h-8 w-8 text-primary" />
-                </div>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Contact direct</h3>
-              <p className="text-muted-foreground">
-                Échangez directement avec les artisans via leurs informations de contact
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Recent Realisations Section */}
-      <section className="py-16 px-4">
-        <div className="container mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold">Réalisations récentes</h2>
-            <Button variant="outline" asChild>
-              <Link to="/realisations">Voir tout</Link>
+            <Button variant="outline" className="h-11" asChild>
+              <Link to="/realisations">Tout voir</Link>
             </Button>
           </div>
 
           {loading ? (
-            <LoadingSpinner text="Chargement des réalisations..." />
+            <LoadingSpinner text="Chargement des realisations..." />
           ) : realisations.length === 0 ? (
             <EmptyState
               icon={ImageIcon}
-              title="Aucune réalisation"
-              description="Aucune réalisation n'a encore été publiée"
+              title="Aucune realisation"
+              description="Aucune realisation n'a encore ete publiee."
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {realisations.map((realisation) => (
                 <RealisationCard
                   key={realisation.id}
@@ -150,15 +177,14 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 px-4 bg-primary text-primary-foreground">
-        <div className="container mx-auto text-center max-w-3xl">
-          <h2 className="text-3xl font-bold mb-4">Vous êtes artisan ?</h2>
-          <p className="text-lg mb-8 opacity-90">
-            Rejoignez notre plateforme et partagez vos réalisations avec des milliers de clients potentiels
+      <section className="bg-primary py-12 text-primary-foreground sm:py-16">
+        <div className="container mx-auto max-w-3xl px-4 text-center">
+          <h2 className="text-3xl">Vous etes artisan ?</h2>
+          <p className="mt-3 text-base opacity-95 sm:text-lg">
+            Creez votre profil et montrez vos realisations a des clients proches de vous.
           </p>
-          <Button size="lg" variant="secondary" asChild>
-            <Link to="/register">Créer mon compte artisan</Link>
+          <Button size="lg" variant="secondary" className="mt-7 h-12 px-7" asChild>
+            <Link to="/register">Creer mon compte artisan</Link>
           </Button>
         </div>
       </section>
