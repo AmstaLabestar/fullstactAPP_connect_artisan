@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.db.models import Count
 from django.utils.html import format_html
 
-from .models import Artisan, Commentaire, Like, Metier, Realisation
+from .models import Artisan, CommentLike, Commentaire, Like, Metier, Realisation
 
 
 @admin.register(Metier)
@@ -91,12 +91,19 @@ class ArtisanAdmin(UserAdmin):
 class CommentaireInline(admin.TabularInline):
     model = Commentaire
     extra = 0
-    readonly_fields = ("created_at",)
+    readonly_fields = ("user", "created_at",)
     classes = ("collapse",)
 
 
 class LikeInline(admin.TabularInline):
     model = Like
+    extra = 0
+    readonly_fields = ("user", "ip_address", "created_at")
+    classes = ("collapse",)
+
+
+class CommentLikeInline(admin.TabularInline):
+    model = CommentLike
     extra = 0
     readonly_fields = ("user", "ip_address", "created_at")
     classes = ("collapse",)
@@ -158,9 +165,10 @@ class RealisationAdmin(admin.ModelAdmin):
 
 @admin.register(Commentaire)
 class CommentaireAdmin(admin.ModelAdmin):
-    list_display = ("auteur_nom", "realisation", "texte_short", "created_at")
+    list_display = ("auteur_nom", "user", "realisation", "texte_short", "created_at")
     search_fields = ("auteur_nom", "texte", "realisation__titre")
     list_filter = ("created_at",)
+    inlines = [CommentLikeInline]
 
     def texte_short(self, obj):
         return f"{obj.texte[:50]}..." if len(obj.texte) > 50 else obj.texte
@@ -173,6 +181,16 @@ class LikeAdmin(admin.ModelAdmin):
     list_display = ("realisation", "user", "ip_address", "created_at")
     list_filter = ("created_at",)
     search_fields = ("realisation__titre", "user__username", "ip_address")
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(CommentLike)
+class CommentLikeAdmin(admin.ModelAdmin):
+    list_display = ("commentaire", "user", "ip_address", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("commentaire__texte", "user__username", "ip_address")
 
     def has_change_permission(self, request, obj=None):
         return False

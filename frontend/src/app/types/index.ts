@@ -35,9 +35,14 @@ export interface Realisation {
 
 export interface Commentaire {
   id: number;
+  user_id: number | null;
   auteur_nom: string;
   texte: string;
   created_at: string;
+  likes_count: number;
+  is_liked: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
 }
 
 export interface PaginatedResponse<T> {

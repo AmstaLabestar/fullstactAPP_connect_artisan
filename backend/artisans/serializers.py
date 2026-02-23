@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import Artisan, Commentaire, Like, Metier, Realisation
+from .services import RequestMetadataService
 
 
 class ArtisanSerializer(serializers.ModelSerializer):
@@ -154,9 +155,27 @@ class ArtisanProfileSerializer(serializers.ModelSerializer):
 
 
 class CommentaireSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(read_only=True, allow_null=True)
+    likes_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
     class Meta:
         model = Commentaire
-        fields = ["id", "auteur_nom", "texte", "created_at"]
+        fields = [
+            "id",
+            "user_id",
+            "auteur_nom",
+            "texte",
+            "created_at",
+            "likes_count",
+            "is_liked",
+            "can_edit",
+            "can_delete",
+        ]
+        read_only_fields = ["id", "created_at", "user_id", "likes_count", "is_liked"]
+        extra_kwargs = {"auteur_nom": {"required": False}}
 
     def validate_texte(self, value):
         cleaned = value.strip()
@@ -167,10 +186,69 @@ class CommentaireSerializer(serializers.ModelSerializer):
         return cleaned
 
     def validate_auteur_nom(self, value):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return request.user.username
+
         cleaned = value.strip()
-        if not cleaned:
-            raise serializers.ValidationError("Le nom de l'auteur est obligatoire.")
-        return cleaned
+        return cleaned or "Visiteur"
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            attrs["auteur_nom"] = request.user.username
+            return attrs
+
+        auteur_nom = attrs.get("auteur_nom", "")
+        attrs["auteur_nom"] = auteur_nom.strip() or "Visiteur"
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            validated_data["user"] = request.user
+            validated_data["auteur_nom"] = request.user.username
+        else:
+            validated_data["user"] = None
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        request = self.context.get("request")
+        validated_data.pop("user", None)
+        if request and request.user.is_authenticated:
+            validated_data["auteur_nom"] = request.user.username
+        return super().update(instance, validated_data)
+
+    def get_likes_count(self, obj):
+        return getattr(obj, "likes_count", obj.likes.count())
+
+    def get_is_liked(self, obj):
+        if hasattr(obj, "is_liked"):
+            return bool(obj.is_liked)
+
+        request = self.context.get("request")
+        if not request:
+            return False
+
+        if request.user.is_authenticated:
+            return obj.likes.filter(user=request.user).exists()
+
+        ip_address = RequestMetadataService.get_client_ip(request)
+        if not ip_address:
+            return False
+        return obj.likes.filter(user__isnull=True, ip_address=ip_address).exists()
+
+    def get_can_edit(self, obj):
+        request = self.context.get("request")
+        return bool(
+            request
+            and request.user.is_authenticated
+            and obj.user_id
+            and obj.user_id == request.user.id
+        )
+
+    def get_can_delete(self, obj):
+        return self.get_can_edit(obj)
 
 
 class RealisationSerializer(serializers.ModelSerializer):
@@ -221,8 +299,13 @@ class RealisationSerializer(serializers.ModelSerializer):
         if hasattr(obj, "is_liked"):
             return bool(obj.is_liked)
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
+        if not request:
+            return False
+        if request.user.is_authenticated:
             return obj.likes.filter(user=request.user).exists()
+        ip_address = RequestMetadataService.get_client_ip(request)
+        if ip_address:
+            return obj.likes.filter(user__isnull=True, ip_address=ip_address).exists()
         return False
 
     def validate_image(self, value):

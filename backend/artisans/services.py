@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from django.db import IntegrityError, transaction
 
-from .models import Like, Realisation
+from .models import CommentLike, Commentaire, Like, Realisation
 
 
 @dataclass(frozen=True)
@@ -23,7 +23,9 @@ class RequestMetadataService:
 class LikeService:
     @staticmethod
     @transaction.atomic
-    def toggle_like(*, realisation: Realisation, user, ip_address: str | None) -> ToggleLikeResult:
+    def toggle_like(
+        *, realisation: Realisation, user, ip_address: str | None
+    ) -> ToggleLikeResult:
         if user is None and not ip_address:
             return ToggleLikeResult(
                 liked=False,
@@ -48,3 +50,37 @@ class LikeService:
             )
 
         return ToggleLikeResult(liked=True, message="Realisation likee.")
+
+
+class CommentLikeService:
+    @staticmethod
+    @transaction.atomic
+    def toggle_like(
+        *, commentaire: Commentaire, user, ip_address: str | None
+    ) -> ToggleLikeResult:
+        if user is None and not ip_address:
+            return ToggleLikeResult(
+                liked=False,
+                message="Impossible d'identifier ce client pour enregistrer un like.",
+            )
+
+        query = CommentLike.objects.select_for_update().filter(commentaire=commentaire)
+        if user is not None:
+            query = query.filter(user=user)
+        else:
+            query = query.filter(user__isnull=True, ip_address=ip_address)
+
+        if query.exists():
+            query.delete()
+            return ToggleLikeResult(liked=False, message="Like supprime.")
+
+        try:
+            CommentLike.objects.create(
+                commentaire=commentaire, user=user, ip_address=ip_address
+            )
+        except IntegrityError:
+            return ToggleLikeResult(
+                liked=True, message="Vous avez deja like ce commentaire."
+            )
+
+        return ToggleLikeResult(liked=True, message="Commentaire like.")
