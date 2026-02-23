@@ -70,7 +70,7 @@ export const ArtisanDetail: React.FC = () => {
       toast.success('Votre action a ete enregistree');
     } catch (error: any) {
       if (error.message !== 'Session expiree') {
-        toast.error("Vous devez etre connecte pour aimer une realisation");
+        toast.error("Erreur lors de l'enregistrement du like");
       }
     }
   };

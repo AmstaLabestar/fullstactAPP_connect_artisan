@@ -89,15 +89,25 @@ class RealisationQuerySet(models.QuerySet):
     def public(self):
         return self.filter(is_available=True)
 
-    def with_is_liked(self, user):
-        if not user or not user.is_authenticated:
+    def with_is_liked(self, user, ip_address=None):
+        if user and user.is_authenticated:
             return self.annotate(
-                is_liked=models.Value(False, output_field=models.BooleanField())
+                is_liked=models.Exists(
+                    Like.objects.filter(realisation=models.OuterRef("pk"), user=user)
+                )
+            )
+        if ip_address:
+            return self.annotate(
+                is_liked=models.Exists(
+                    Like.objects.filter(
+                        realisation=models.OuterRef("pk"),
+                        user__isnull=True,
+                        ip_address=ip_address,
+                    )
+                )
             )
         return self.annotate(
-            is_liked=models.Exists(
-                Like.objects.filter(realisation=models.OuterRef("pk"), user=user)
-            )
+            is_liked=models.Value(False, output_field=models.BooleanField())
         )
 
 
@@ -124,6 +134,13 @@ class Commentaire(models.Model):
     realisation = models.ForeignKey(
         Realisation, related_name="commentaires", on_delete=models.CASCADE
     )
+    user = models.ForeignKey(
+        Artisan,
+        related_name="commentaires",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
     auteur_nom = models.CharField(max_length=150)
     texte = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -133,6 +150,41 @@ class Commentaire(models.Model):
 
     def __str__(self):
         return f"Commentaire de {self.auteur_nom}"
+
+
+class CommentLike(models.Model):
+    commentaire = models.ForeignKey(
+        Commentaire, related_name="likes", on_delete=models.CASCADE
+    )
+    user = models.ForeignKey(
+        Artisan,
+        related_name="comment_likes",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["commentaire", "user"],
+                name="unique_comment_like_per_user",
+                condition=models.Q(user__isnull=False),
+            ),
+            models.UniqueConstraint(
+                fields=["commentaire", "ip_address"],
+                name="unique_comment_like_per_ip",
+                condition=models.Q(user__isnull=True),
+            ),
+        ]
+
+    def __str__(self):
+        if self.user:
+            return f"{self.user.username} a like le commentaire {self.commentaire_id}"
+        return f"Visiteur {self.ip_address} a like le commentaire {self.commentaire_id}"
 
 
 class Like(models.Model):

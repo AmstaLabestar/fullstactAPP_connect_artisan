@@ -4,7 +4,9 @@ from .views import (
     ArtisanDetailView,
     ArtisanListView,
     ArtisanRealisationsView,
+    CommentLikeToggleView,
     CommentaireListCreateView,
+    CommentaireUpdateDestroyView,
     LikeToggleView,
     LoginView,
     LogoutView,
@@ -45,6 +47,16 @@ urlpatterns = [
         "realisations/<int:realisation_id>/commentaires/",
         CommentaireListCreateView.as_view(),
         name="commentaires",
+    ),
+    path(
+        "realisations/<int:realisation_id>/commentaires/<int:commentaire_id>/",
+        CommentaireUpdateDestroyView.as_view(),
+        name="commentaire-detail",
+    ),
+    path(
+        "realisations/<int:realisation_id>/commentaires/<int:commentaire_id>/like/",
+        CommentLikeToggleView.as_view(),
+        name="commentaire-like-toggle",
     ),
     path(
         "realisations/<int:realisation_id>/like/",

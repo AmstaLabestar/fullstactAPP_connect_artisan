@@ -49,7 +49,7 @@ export const RealisationsList: React.FC = () => {
       if (error.message === 'Session expiree') {
         return;
       }
-      toast.error("Vous devez etre connecte pour aimer une realisation");
+      toast.error("Erreur lors de l'enregistrement du like");
     }
   };
 

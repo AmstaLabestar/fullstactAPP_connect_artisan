@@ -91,10 +91,14 @@ export const RealisationCard: React.FC<RealisationCardProps> = ({
             <span>{realisation.likes_count}</span>
           </button>
 
-          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Link
+            to={`/realisations/${realisation.id}#comments-${realisation.id}`}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
+          >
             <MessageCircle className="h-4 w-4" />
             <span>{realisation.commentaires_count}</span>
-          </span>
+            <span className="hidden text-xs sm:inline">Commenter</span>
+          </Link>
         </div>
 
         {whatsappLink ? (
