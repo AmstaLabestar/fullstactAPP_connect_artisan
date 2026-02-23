@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Django
+backend/db.sqlite3
+backend/media/
+backend/staticfiles/
+backend/.env
+backend/*.log
+
+# Frontend
+frontend/artisan_client/node_modules/
+frontend/artisan_client/dist/
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
