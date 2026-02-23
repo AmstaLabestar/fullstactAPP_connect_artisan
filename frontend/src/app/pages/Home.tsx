@@ -4,7 +4,7 @@ import {
   ArrowRight,
   Hammer,
   Image as ImageIcon,
-  Phone,
+  MessageCircle,
   Search,
   ShieldCheck,
 } from 'lucide-react';
@@ -28,9 +28,9 @@ const QUICK_STEPS = [
     description: 'Consultez ses realisations pour verifier son style et sa qualite.',
   },
   {
-    icon: Phone,
+    icon: MessageCircle,
     title: '3. Contactez',
-    description: 'Appelez ou demandez un devis en quelques secondes.',
+    description: 'Ouvrez WhatsApp en 1 tap pour parler, envoyer des photos ou un vocal.',
   },
 ];
 
@@ -90,7 +90,7 @@ export const Home: React.FC = () => {
             <div className="mt-8 grid gap-3 sm:inline-flex sm:flex-row">
               <Button size="lg" className="h-12 px-7 text-base" asChild>
                 <Link to="/artisans">
-                  Trouver un artisan
+                  Trouver sur WhatsApp
                   <ArrowRight className="h-5 w-5" />
                 </Link>
               </Button>
@@ -133,7 +133,7 @@ export const Home: React.FC = () => {
             </div>
             <Button variant="secondary" size="lg" className="h-12 px-6" asChild>
               <Link to="/artisans">
-                Demander un devis
+                Contacter sur WhatsApp
                 <ShieldCheck className="h-5 w-5" />
               </Link>
             </Button>

@@ -1,18 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Calendar, Heart, MessageCircle, Send } from 'lucide-react';
+import { ArrowLeft, Calendar, Heart, MessageCircle, Phone, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { Realisation } from '../types';
+import { buildWhatsAppLink } from '../services/whatsapp';
+import { Artisan, Realisation } from '../types';
+import { WhatsAppStickyCTA } from '../components/mobile/WhatsAppStickyCTA';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent } from '../components/ui/card';
 import { Separator } from '../components/ui/separator';
+import { WhatsAppButton } from '../components/ui/WhatsAppButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
 
@@ -25,6 +28,7 @@ export const RealisationDetail: React.FC = () => {
   const [error, setError] = useState<any>(null);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [artisanPhone, setArtisanPhone] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -36,7 +40,17 @@ export const RealisationDetail: React.FC = () => {
     try {
       const data = await api.get<Realisation>(`/realisations/${id}/`);
       setRealisation(data);
+      setArtisanPhone(data.artisan_phone || '');
       setError(null);
+
+      if (!data.artisan_phone) {
+        try {
+          const artisanData = await api.get<Artisan>(`/artisans/${data.artisan}/`);
+          setArtisanPhone(artisanData.phone);
+        } catch {
+          setArtisanPhone('');
+        }
+      }
     } catch (err) {
       console.error('Error loading realisation:', err);
       setError(err);
@@ -113,6 +127,13 @@ export const RealisationDetail: React.FC = () => {
       </div>
     );
   }
+
+  const whatsappLink = artisanPhone
+    ? buildWhatsAppLink(
+        artisanPhone,
+        `Bonjour ${realisation.artisan_username}, j ai vu votre realisation ${realisation.titre} sur Artisan Connect.`
+      )
+    : '';
 
   return (
     <div className="min-h-screen bg-background">
@@ -267,11 +288,21 @@ export const RealisationDetail: React.FC = () => {
                 </Link>
 
                 <div className="space-y-2">
-                  <Button className="h-11 w-full" asChild>
-                    <Link to={`/artisans/${realisation.artisan}`}>Demander un devis</Link>
-                  </Button>
-                  <Button variant="outline" className="h-11 w-full" asChild>
-                    <Link to={`/artisans/${realisation.artisan}`}>Voir ses realisations</Link>
+                  <WhatsAppButton
+                    href={whatsappLink}
+                    label="WhatsApp"
+                    className="h-12 w-full text-base font-semibold"
+                  />
+                  {artisanPhone ? (
+                    <Button variant="outline" className="h-11 w-full" asChild>
+                      <a href={`tel:${artisanPhone}`}>
+                        <Phone className="h-4 w-4" />
+                        Appeler
+                      </a>
+                    </Button>
+                  ) : null}
+                  <Button variant="ghost" className="h-11 w-full" asChild>
+                    <Link to={`/artisans/${realisation.artisan}`}>Voir le profil</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -280,16 +311,13 @@ export const RealisationDetail: React.FC = () => {
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-16 z-40 border-t border-border/70 bg-card/95 p-3 backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-3xl grid-cols-2 gap-2">
-          <Button variant="outline" className="h-11 text-sm" asChild>
-            <Link to={`/artisans/${realisation.artisan}`}>Voir artisan</Link>
-          </Button>
-          <Button className="h-11 text-sm" asChild>
-            <Link to={`/artisans/${realisation.artisan}`}>Demander un devis</Link>
-          </Button>
-        </div>
-      </div>
+      <WhatsAppStickyCTA
+        href={whatsappLink}
+        label="WhatsApp"
+        secondaryHref={artisanPhone ? `tel:${artisanPhone}` : undefined}
+        secondaryLabel={artisanPhone ? 'Appeler' : undefined}
+        secondaryIcon={Phone}
+      />
     </div>
   );
 };

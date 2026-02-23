@@ -4,19 +4,20 @@ import {
   ArrowLeft,
   Briefcase,
   Image as ImageIcon,
-  Mail,
   MapPin,
-  MessageCircle,
   Phone,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../services/api';
+import { buildWhatsAppLink } from '../services/whatsapp';
 import { Artisan, PaginatedResponse, Realisation } from '../types';
+import { WhatsAppStickyCTA } from '../components/mobile/WhatsAppStickyCTA';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Separator } from '../components/ui/separator';
+import { WhatsAppButton } from '../components/ui/WhatsAppButton';
 import { RealisationCard } from '../components/RealisationCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
@@ -98,7 +99,10 @@ export const ArtisanDetail: React.FC = () => {
   }
 
   const metiers = Array.isArray(artisan.metiers) ? artisan.metiers : [];
-  const quoteLink = `mailto:${artisan.email}?subject=${encodeURIComponent(`Demande de devis - ${artisan.username}`)}`;
+  const whatsappLink = buildWhatsAppLink(
+    artisan.phone,
+    `Bonjour ${artisan.username}, je vous contacte depuis Artisan Connect.`
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -148,39 +152,36 @@ export const ArtisanDetail: React.FC = () => {
                   </div>
                   <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
                     <p className="mb-1 text-xs uppercase text-muted-foreground">Telephone</p>
-                    <a href={`tel:${artisan.phone}`} className="inline-flex items-center gap-2 text-sm hover:text-primary">
+                    <a
+                      href={`tel:${artisan.phone}`}
+                      className="inline-flex items-center gap-2 text-sm hover:text-primary"
+                    >
                       <Phone className="h-4 w-4 text-primary" />
                       {artisan.phone}
                     </a>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-muted/30 p-3 sm:col-span-2">
-                    <p className="mb-1 text-xs uppercase text-muted-foreground">Email</p>
-                    <a href={`mailto:${artisan.email}`} className="inline-flex items-center gap-2 text-sm hover:text-primary">
-                      <Mail className="h-4 w-4 text-primary" />
-                      <span className="break-all">{artisan.email}</span>
-                    </a>
+                    <p className="mb-1 text-xs uppercase text-muted-foreground">Contact rapide</p>
+                    <p className="text-sm text-muted-foreground">
+                      Appuyez sur WhatsApp pour envoyer un message, une photo ou un vocal.
+                    </p>
                   </div>
                 </div>
 
-                <div className="hidden gap-3 md:grid md:grid-cols-3">
-                  <Button className="h-11" asChild>
-                    <a href={`tel:${artisan.phone}`}>
-                      <Phone className="h-4 w-4" />
-                      Appeler
-                    </a>
-                  </Button>
-                  <Button variant="outline" className="h-11" asChild>
-                    <a href={`mailto:${artisan.email}`}>
-                      <Mail className="h-4 w-4" />
-                      Contacter
-                    </a>
-                  </Button>
-                  <Button variant="secondary" className="h-11" asChild>
-                    <a href={quoteLink}>
-                      <MessageCircle className="h-4 w-4" />
-                      Demander un devis
-                    </a>
-                  </Button>
+                <div className="space-y-2">
+                  <WhatsAppButton
+                    href={whatsappLink}
+                    label={`WhatsApp ${artisan.username}`}
+                    className="h-12 w-full text-base font-semibold md:max-w-sm"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" className="h-11" asChild>
+                      <a href={`tel:${artisan.phone}`}>
+                        <Phone className="h-4 w-4" />
+                        Appeler
+                      </a>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -217,28 +218,13 @@ export const ArtisanDetail: React.FC = () => {
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-16 z-40 border-t border-border/70 bg-card/95 p-3 backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-3xl grid-cols-3 gap-2">
-          <Button className="h-11 text-xs" asChild>
-            <a href={`tel:${artisan.phone}`}>
-              <Phone className="h-4 w-4" />
-              Appeler
-            </a>
-          </Button>
-          <Button variant="outline" className="h-11 text-xs" asChild>
-            <a href={`mailto:${artisan.email}`}>
-              <Mail className="h-4 w-4" />
-              Contacter
-            </a>
-          </Button>
-          <Button variant="secondary" className="h-11 text-xs" asChild>
-            <a href={quoteLink}>
-              <MessageCircle className="h-4 w-4" />
-              Devis
-            </a>
-          </Button>
-        </div>
-      </div>
+      <WhatsAppStickyCTA
+        href={whatsappLink}
+        label="WhatsApp"
+        secondaryHref={`tel:${artisan.phone}`}
+        secondaryLabel="Appeler"
+        secondaryIcon={Phone}
+      />
     </div>
   );
 };

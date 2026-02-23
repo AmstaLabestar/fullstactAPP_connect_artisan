@@ -20,6 +20,7 @@ export interface Realisation {
   id: number;
   artisan: number;
   artisan_username: string;
+  artisan_phone?: string;
   artisan_photo: string | null;
   titre: string;
   description: string;
