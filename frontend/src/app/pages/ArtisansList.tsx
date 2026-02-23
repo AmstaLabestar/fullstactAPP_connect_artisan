@@ -38,8 +38,8 @@ export const ArtisansList: React.FC = () => {
 
   const loadMetiers = async () => {
     try {
-      const data = await api.get<Metier[]>('/metiers/');
-      setMetiers(data);
+      const data = await api.get<Metier[] | PaginatedResponse<Metier>>('/metiers/');
+      setMetiers(Array.isArray(data) ? data : data.results || []);
     } catch (error) {
       console.error('Error loading metiers:', error);
     }

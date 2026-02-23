@@ -1,215 +1,228 @@
-# artisans/views.py
-from rest_framework import generics, permissions, status, filters
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.exceptions import PermissionDenied
-from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.pagination import PageNumberPagination
-from django.db.models import Count
+from rest_framework import filters, generics, permissions, status
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Artisan, Realisation, Metier, Commentaire, Like
-from .serializers import (
-    ArtisanRegisterSerializer,
-    ArtisanProfileSerializer,
-    ArtisanListSerializer,
-    RealisationSerializer,
-    MetierSerializer,
-    CommentaireSerializer
-)
 from .filters import ArtisanFilter
+from .models import Artisan, Commentaire, Metier, Realisation
+from .permissions import IsOwnerOrReadOnly
+from .serializers import (
+    ArtisanListSerializer,
+    ArtisanProfileSerializer,
+    ArtisanRegisterSerializer,
+    ArtisanSerializer,
+    CommentaireSerializer,
+    CustomTokenObtainPairSerializer,
+    MetierSerializer,
+    RealisationSerializer,
+)
+from .services import LikeService, RequestMetadataService
 
-# ================================================================
-# 🔹 INSCRIPTION D’UN ARTISAN
-# ================================================================
+
 class RegisterView(generics.CreateAPIView):
     queryset = Artisan.objects.all()
     serializer_class = ArtisanRegisterSerializer
     permission_classes = [permissions.AllowAny]
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        artisan = serializer.save()
-
-        refresh = RefreshToken.for_user(artisan)
-        return Response({
-            "artisan": ArtisanProfileSerializer(artisan).data,
-            "refresh": str(refresh),
-            "access": str(refresh.access_token)
-        }, status=status.HTTP_201_CREATED)
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register"
 
 
-# ================================================================
-# 🔹 CONNEXION / DÉCONNEXION
-# ================================================================
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def post(self, request):
-        phone = request.data.get("phone")
-        password = request.data.get("password")
-
-        if not phone or not password:
-            return Response({"error": "Numéro et mot de passe requis"}, status=400)
-
-        user = authenticate(request, phone=phone, password=password)
-        if user is not None:
-            refresh = RefreshToken.for_user(user)
-            serializer = ArtisanProfileSerializer(user)
-            return Response({
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-                "artisan": serializer.data
-            })
-        return Response({"error": "Identifiants invalides."}, status=401)
+        serializer = CustomTokenObtainPairSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            raise ValidationError({"refresh": "Le refresh token est obligatoire."})
+
         try:
-            token = RefreshToken(request.data.get("refresh"))
+            token = RefreshToken(refresh_token)
             token.blacklist()
-            return Response({"message": "Déconnexion réussie"}, status=205)
-        except Exception:
-            return Response({"error": "Token invalide"}, status=400)
+        except TokenError as exc:
+            raise ValidationError({"refresh": "Token invalide ou expire."}) from exc
+
+        return Response(
+            {"detail": "Deconnexion reussie."}, status=status.HTTP_205_RESET_CONTENT
+        )
 
 
-# ================================================================
-# 🔹 PROFIL DE L’ARTISAN CONNECTÉ
-# ================================================================
-class ProfileView(generics.RetrieveAPIView):
+class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = ArtisanProfileSerializer
 
-    def get_object(self):
-        return self.request.user
+    def get(self, request):
+        serializer = ArtisanProfileSerializer(request.user, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        serializer = ArtisanProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    patch = put
 
 
-# ================================================================
-# 🔹 LISTE DES ARTISANS (recherche + filtres + tri)
-# ================================================================
 class ArtisanListView(generics.ListAPIView):
-    queryset = Artisan.objects.all()
+    queryset = Artisan.objects.prefetch_related("metiers").all()
     serializer_class = ArtisanListSerializer
     permission_classes = [permissions.AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = ArtisanFilter
-    search_fields = ['username', 'metiers__nom', 'ville']
-    ordering_fields = ['metiers__nom', 'ville']
+    search_fields = ["username", "phone"]
+    ordering_fields = ["username", "ville", "date_joined"]
+    ordering = ["-date_joined"]
 
 
-# ================================================================
-# 🔹 PERMISSION : SEUL LE PROPRIÉTAIRE PEUT MODIFIER
-# ================================================================
-class IsOwnerOrReadOnly(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        return obj.artisan == request.user or request.user.is_staff
+class ArtisanDetailView(generics.RetrieveAPIView):
+    queryset = Artisan.objects.prefetch_related("metiers").all()
+    serializer_class = ArtisanSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = "pk"
 
 
-# ================================================================
-# 🔹 LISTE & CRÉATION DE RÉALISATIONS
-# ================================================================
-class RealisationListCreateView(generics.ListCreateAPIView):
-    queryset = Realisation.objects.all().order_by('-created_at')
+class ArtisanRealisationsView(generics.ListAPIView):
     serializer_class = RealisationSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    pagination_class = PageNumberPagination
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['titre', 'description']
-    ordering_fields = ['created_at']
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        queryset = Realisation.objects.all().annotate(likes_count=Count('likes')).order_by('-created_at')
-        artisan_id = self.request.query_params.get('artisan_id')
-        if artisan_id:
-            queryset = queryset.filter(artisan_id=artisan_id)
-        return queryset
+        artisan_id = self.kwargs.get("pk")
+        return (
+            Realisation.objects.public()
+            .filter(artisan_id=artisan_id)
+            .with_related()
+            .with_counters()
+            .with_is_liked(self.request.user)
+            .prefetch_related("commentaires")
+            .order_by("-created_at")
+        )
+
+
+class MetierListCreateView(generics.ListCreateAPIView):
+    queryset = Metier.objects.all()
+    serializer_class = MetierSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        if not self.request.user.is_staff:
+            raise PermissionDenied("Seul un administrateur peut creer un metier.")
+        serializer.save()
+
+
+class RealisationListPublicView(generics.ListAPIView):
+    serializer_class = RealisationSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return (
+            Realisation.objects.public()
+            .with_related()
+            .with_counters()
+            .with_is_liked(self.request.user)
+            .prefetch_related("commentaires")
+            .order_by("-created_at")
+        )
+
+
+class MyRealisationListCreateView(generics.ListCreateAPIView):
+    serializer_class = RealisationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Realisation.objects.filter(artisan=self.request.user)
+            .with_related()
+            .with_counters()
+            .with_is_liked(self.request.user)
+            .prefetch_related("commentaires")
+            .order_by("-created_at")
+        )
 
     def perform_create(self, serializer):
         serializer.save(artisan=self.request.user)
 
 
-# ================================================================
-# 🔹 DÉTAIL / MISE À JOUR / SUPPRESSION D’UNE RÉALISATION
-# ================================================================
 class RealisationRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Realisation.objects.all()
     serializer_class = RealisationSerializer
-    permission_classes = [IsOwnerOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
-    def get_object(self):
-        obj = super().get_object()
-        return obj
+    def get_queryset(self):
+        base_queryset = (
+            Realisation.objects.with_related()
+            .with_counters()
+            .with_is_liked(self.request.user)
+            .prefetch_related("commentaires")
+            .order_by("-created_at")
+        )
+        if self.request.user.is_authenticated:
+            return base_queryset.filter(
+                Q(is_available=True) | Q(artisan=self.request.user)
+            )
+        return base_queryset.filter(is_available=True)
 
 
-# ================================================================
-# 🔹 LISTE DES MÉTIERS
-# ================================================================
-class MetierListView(generics.ListAPIView):
-    queryset = Metier.objects.all()
-    serializer_class = MetierSerializer
-    permission_classes = [permissions.AllowAny]
-
-
-# ================================================================
-# 🔹 COMMENTAIRES : CRÉATION & LISTE
-# ================================================================
 class CommentaireListCreateView(generics.ListCreateAPIView):
     serializer_class = CommentaireSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "comment"
+
+    def _get_realisation(self):
+        realisation_id = self.kwargs.get("realisation_id")
+        return get_object_or_404(Realisation.objects.public(), pk=realisation_id)
 
     def get_queryset(self):
-        realisation_id = self.kwargs.get('realisation_id')
-        return Commentaire.objects.filter(realisation_id=realisation_id).order_by('-created_at')
+        realisation = self._get_realisation()
+        return Commentaire.objects.filter(realisation=realisation).select_related(
+            "realisation"
+        )
 
     def perform_create(self, serializer):
-        realisation_id = self.kwargs.get('realisation_id')
-        serializer.save(realisation_id=realisation_id)
+        realisation = self._get_realisation()
+        serializer.save(realisation=realisation)
 
 
-# ================================================================
-# 🔹 LIKE / UNLIKE D’UNE RÉALISATION
-# ================================================================
 class LikeToggleView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "like"
 
     def post(self, request, realisation_id):
-        realisation = Realisation.objects.filter(id=realisation_id).first()
-        if not realisation:
-            return Response({"error": "Réalisation non trouvée."}, status=404)
-
+        realisation = get_object_or_404(Realisation.objects.public(), pk=realisation_id)
         user = request.user if request.user.is_authenticated else None
-        ip = request.META.get('REMOTE_ADDR')
+        ip_address = RequestMetadataService.get_client_ip(request)
 
-        # Correction: Définir l'objet de recherche de like
-        if user:
-            # Recherche par utilisateur connecté
-            like_filter = {'realisation': realisation, 'user': user}
-        else:
-            # Recherche par IP pour les non-connectés
-            # On s'assure que `user` est bien None pour ne pas interférer avec unique_together
-            like_filter = {'realisation': realisation, 'user': None, 'ip_address': ip}
+        result = LikeService.toggle_like(
+            realisation=realisation, user=user, ip_address=ip_address
+        )
 
-        try:
-            like = Like.objects.get(**like_filter)
-            # UNLIKE (suppression)
-            like.delete()
-            return Response({"message": "Like retiré."}, status=200)
-        except Like.DoesNotExist:
-            # LIKE (création)
-            try:
-                if user:
-                    Like.objects.create(realisation=realisation, user=user, ip_address=ip)
-                else:
-                    Like.objects.create(realisation=realisation, ip_address=ip, user=None)
-                return Response({"message": "Like ajouté."}, status=201)
-            except Exception as e:
-                # Gérer une exception possible (par ex. si l'IP a déjà liké et la contrainte 
-                # unique_together personnalisée n'est pas pleinement implémentée)
-                return Response({"error": "Erreur lors de l'ajout du like.", "details": str(e)}, status=400)
+        if result.message.startswith("Impossible"):
+            return Response({"detail": result.message}, status=status.HTTP_400_BAD_REQUEST)
+        if result.message == "Like supprime.":
+            return Response({"detail": result.message}, status=status.HTTP_200_OK)
+        if result.message == "Vous avez deja like cette realisation.":
+            return Response({"detail": result.message}, status=status.HTTP_200_OK)
+        return Response({"detail": result.message}, status=status.HTTP_201_CREATED)

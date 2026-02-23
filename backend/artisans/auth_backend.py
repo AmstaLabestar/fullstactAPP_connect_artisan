@@ -1,19 +1,17 @@
 from django.contrib.auth.backends import ModelBackend
+
 from .models import Artisan
+
 
 class PhoneAuthBackend(ModelBackend):
     def authenticate(self, request, phone=None, password=None, **kwargs):
-        try:
-            user = Artisan.objects.get(phone=phone)
-        except Artisan.DoesNotExist:
+        if not phone or not password:
             return None
 
-        if user.check_password(password) and user.is_active:
+        user = Artisan.objects.filter(phone=phone).first()
+        if user and user.check_password(password) and user.is_active:
             return user
         return None
-    
+
     def get_user(self, user_id):
-        try:
-            return Artisan.objects.get(pk=user_id)
-        except Artisan.DoesNotExist:
-            return None
+        return Artisan.objects.filter(pk=user_id).first()

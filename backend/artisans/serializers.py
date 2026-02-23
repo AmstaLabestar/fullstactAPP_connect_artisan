@@ -1,8 +1,27 @@
-from rest_framework import serializers
-from .models import Artisan, Realisation, Metier,Commentaire,Like
-from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+from .models import Artisan, Commentaire, Like, Metier, Realisation
+
+
+class ArtisanSerializer(serializers.ModelSerializer):
+    metiers = serializers.StringRelatedField(many=True)
+
+    class Meta:
+        model = Artisan
+        fields = [
+            "id",
+            "username",
+            "email",
+            "phone",
+            "ville",
+            "secteur",
+            "metiers",
+            "photo_profil",
+        ]
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     phone = serializers.CharField(required=True)
@@ -12,15 +31,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         phone = attrs.get("phone")
         password = attrs.get("password")
 
-        # Authentification via le backend personnalisé
         user = authenticate(phone=phone, password=password)
-
         if not user:
-            raise serializers.ValidationError("Numéro de téléphone ou mot de passe incorrect.")
+            raise serializers.ValidationError(
+                {"detail": "Numero de telephone ou mot de passe incorrect."}
+            )
 
         refresh = self.get_token(user)
-
-        data = {
+        return {
             "refresh": str(refresh),
             "access": str(refresh.access_token),
             "artisan": {
@@ -30,58 +48,75 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 "email": user.email,
                 "ville": user.ville,
                 "secteur": user.secteur,
-                "photo_profil": user.photo_profil.url if user.photo_profil else None,
+                "photo_profil": (
+                    self.context.get("request").build_absolute_uri(user.photo_profil.url)
+                    if user.photo_profil and self.context.get("request")
+                    else (user.photo_profil.url if user.photo_profil else None)
+                ),
             },
         }
 
-        return data
 
 class MetierSerializer(serializers.ModelSerializer):
     class Meta:
         model = Metier
-        fields = ['id', 'nom']
+        fields = ["id", "nom"]
+
+    def validate_nom(self, value):
+        normalized = value.strip()
+        existing = Metier.objects.filter(nom__iexact=normalized)
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise serializers.ValidationError("Ce metier existe deja.")
+        return normalized
 
 
 class ArtisanRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     metiers = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=Metier.objects.all(),
-        required=True  # obligatoire de choisir au moins un métier
+        many=True, queryset=Metier.objects.all(), required=True
     )
 
     class Meta:
         model = Artisan
-        fields = ['username', 'email', 'phone', 'ville', 'secteur', 'metiers', 'photo_profil', 'password']
+        fields = [
+            "username",
+            "email",
+            "phone",
+            "ville",
+            "secteur",
+            "metiers",
+            "photo_profil",
+            "password",
+        ]
 
-    # ✅ Création de l'artisan avec assignation des métiers
     def create(self, validated_data):
-        metiers_data = validated_data.pop('metiers', [])
+        metiers_data = validated_data.pop("metiers", [])
         artisan = Artisan.objects.create_user(**validated_data)
-        if metiers_data:
-            artisan.metiers.set(metiers_data)  # Remplace la liste existante
+        artisan.metiers.set(metiers_data)
         return artisan
 
-    # ✅ Validation du téléphone
     def validate_phone(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError("Le numéro de téléphone doit contenir uniquement des chiffres.")
-        if Artisan.objects.filter(phone=value).exists():
-            raise serializers.ValidationError("Ce numéro est déjà utilisé.")
-        return value
+        cleaned = value.strip()
+        if not cleaned.isdigit():
+            raise serializers.ValidationError(
+                "Le numero de telephone doit contenir uniquement des chiffres."
+            )
+        if Artisan.objects.filter(phone=cleaned).exists():
+            raise serializers.ValidationError("Ce numero est deja utilise.")
+        return cleaned
 
-    # ✅ Validation des métiers (au moins un)
     def validate_metiers(self, value):
         if not value:
-            raise serializers.ValidationError("Vous devez choisir au moins un métier.")
+            raise serializers.ValidationError("Vous devez choisir au moins un metier.")
         return value
-class ArtisanProfileSerializer(serializers.ModelSerializer):
-    metiers = MetierSerializer(many=True, read_only=True)
 
-    class Meta:
-        model = Artisan
-        fields = ['id', 'username', 'email', 'phone', 'ville', 'secteur', 'metiers', 'photo_profil']
-        read_only_fields = ['phone']
+    def validate_username(self, value):
+        cleaned = value.strip()
+        if Artisan.objects.filter(username__iexact=cleaned).exists():
+            raise serializers.ValidationError("Ce nom utilisateur est deja utilise.")
+        return cleaned
 
 
 class ArtisanListSerializer(serializers.ModelSerializer):
@@ -89,64 +124,147 @@ class ArtisanListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Artisan
-        fields = ['username','phone', 'photo_profil', 'metiers', 'ville', 'secteur']
+        fields = [
+            "id",
+            "username",
+            "phone",
+            "photo_profil",
+            "metiers",
+            "ville",
+            "secteur",
+        ]
 
 
-class RealisationSerializer(serializers.ModelSerializer):
-    artisan_username = serializers.CharField(source='artisan.username', read_only=True)
-
-    class Meta:
-        model = Realisation
-        fields = ['id', 'artisan', 'artisan_username', 'titre', 'description', 'image', 'created_at', 'is_available']
-        read_only_fields = ['artisan']
-
-    def validate_image(self, value):
-        if value.size > 2 * 1024 * 1024:
-            raise serializers.ValidationError("L’image ne doit pas dépasser 2MB.")
-        if not value.name.lower().endswith(('.png', '.jpg', '.jpeg')):
-            raise serializers.ValidationError("Format d’image non supporté.")
-        return value
-
-
-class CommentaireSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Commentaire
-        fields = ['id', 'auteur_nom', 'texte', 'created_at']
-    def validate_texte(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Le texte du commentaire ne peut pas être vide.")
-        return value
-    
-    
-class LikeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Like
-        fields = ['id', 'artisan', 'realisation', 'created_at']
-    def validate(self, data):
-        artisan = data.get('artisan')
-        realisation = data.get('realisation')
-        if Like.objects.filter(artisan=artisan, realisation=realisation).exists():
-            raise serializers.ValidationError("Vous avez déjà liké cette réalisation.")
-        return data
-    
-class MetierSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Metier
-        fields = ['id', 'nom']
-    def validate_nom(self, value):
-        if Metier.objects.filter(nom__iexact=value).exists():
-            raise serializers.ValidationError("Ce métier existe déjà.")
-        return value
-    
-    
 class ArtisanProfileSerializer(serializers.ModelSerializer):
     metiers = MetierSerializer(many=True, read_only=True)
 
     class Meta:
         model = Artisan
-        fields = ['id', 'username', 'email', 'phone', 'ville', 'secteur', 'metiers', 'photo_profil']
-        read_only_fields = ['phone']
-        
-        
+        fields = [
+            "id",
+            "username",
+            "email",
+            "phone",
+            "ville",
+            "secteur",
+            "metiers",
+            "photo_profil",
+        ]
+        read_only_fields = ["phone"]
 
 
+class CommentaireSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Commentaire
+        fields = ["id", "auteur_nom", "texte", "created_at"]
+
+    def validate_texte(self, value):
+        cleaned = value.strip()
+        if not cleaned:
+            raise serializers.ValidationError(
+                "Le texte du commentaire ne peut pas etre vide."
+            )
+        return cleaned
+
+    def validate_auteur_nom(self, value):
+        cleaned = value.strip()
+        if not cleaned:
+            raise serializers.ValidationError("Le nom de l'auteur est obligatoire.")
+        return cleaned
+
+
+class RealisationSerializer(serializers.ModelSerializer):
+    artisan_username = serializers.CharField(source="artisan.username", read_only=True)
+    artisan_photo = serializers.SerializerMethodField()
+    likes_count = serializers.SerializerMethodField()
+    commentaires_count = serializers.SerializerMethodField()
+    commentaires = CommentaireSerializer(many=True, read_only=True)
+    is_liked = serializers.SerializerMethodField()
+    image = serializers.ImageField(required=False)
+
+    class Meta:
+        model = Realisation
+        fields = [
+            "id",
+            "artisan",
+            "artisan_username",
+            "artisan_photo",
+            "titre",
+            "description",
+            "image",
+            "created_at",
+            "is_available",
+            "likes_count",
+            "commentaires_count",
+            "is_liked",
+            "commentaires",
+        ]
+        read_only_fields = ["artisan"]
+
+    def get_artisan_photo(self, obj):
+        if not obj.artisan or not obj.artisan.photo_profil:
+            return None
+        request = self.context.get("request")
+        if request is not None:
+            return request.build_absolute_uri(obj.artisan.photo_profil.url)
+        return obj.artisan.photo_profil.url
+
+    def get_likes_count(self, obj):
+        return getattr(obj, "likes_count", obj.likes.count())
+
+    def get_commentaires_count(self, obj):
+        return getattr(obj, "commentaires_count", obj.commentaires.count())
+
+    def get_is_liked(self, obj):
+        if hasattr(obj, "is_liked"):
+            return bool(obj.is_liked)
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(user=request.user).exists()
+        return False
+
+    def validate_image(self, value):
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("L'image ne doit pas depasser 5 MB.")
+
+        allowed_extensions = (".png", ".jpg", ".jpeg")
+        if not value.name.lower().endswith(allowed_extensions):
+            raise serializers.ValidationError(
+                "Format d'image non supporte (PNG/JPG uniquement)."
+            )
+        return value
+
+    def validate(self, attrs):
+        if self.instance is None and not attrs.get("image"):
+            raise serializers.ValidationError({"image": "L'image est obligatoire."})
+        return attrs
+
+
+class LikeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Like
+        fields = ["id", "user", "realisation", "ip_address", "created_at"]
+
+    def validate(self, data):
+        user = data.get("user")
+        realisation = data.get("realisation")
+        ip_address = data.get("ip_address")
+
+        if user:
+            already_exists = Like.objects.filter(
+                realisation=realisation, user=user
+            ).exists()
+        else:
+            if not ip_address:
+                raise serializers.ValidationError(
+                    "Adresse IP requise pour un like anonyme."
+                )
+            already_exists = Like.objects.filter(
+                realisation=realisation, user__isnull=True, ip_address=ip_address
+            ).exists()
+
+        if already_exists:
+            raise serializers.ValidationError(
+                {"detail": "Vous avez deja like cette realisation."}
+            )
+        return data

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { api, authApi } from '../services/api';
-import { Metier } from '../types';
+import { Metier, PaginatedResponse } from '../types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -39,8 +39,8 @@ export const Register: React.FC = () => {
 
   const loadMetiers = async () => {
     try {
-      const data = await api.get<Metier[]>('/metiers/');
-      setMetiers(data);
+      const data = await api.get<Metier[] | PaginatedResponse<Metier>>('/metiers/');
+      setMetiers(Array.isArray(data) ? data : data.results || []);
     } catch (err) {
       console.error('Error loading metiers:', err);
       toast.error('Erreur lors du chargement des métiers');

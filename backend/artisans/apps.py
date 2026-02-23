@@ -4,3 +4,6 @@ from django.apps import AppConfig
 class ArtisansConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'artisans'
+
+    def ready(self):
+        import artisans.signals  # noqa: F401
