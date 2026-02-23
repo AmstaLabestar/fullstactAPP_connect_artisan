@@ -37,3 +37,7 @@ Thumbs.db
 # Database
 *.sqlite3
 backend/db.sqlite3
+
+# Python cache
+__pycache__/
+*.pyccls
