@@ -1,12 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Search,
-  Sparkles,
-  Users,
-} from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Filter, Sparkles, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../services/api';
 import { Artisan, Metier, PaginatedResponse } from '../types';
@@ -14,14 +7,7 @@ import { ArtisanCard } from '../components/ArtisanCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
+import { getMetierVisual } from '../utils/metierVisuals';
 
 function normalizeMetiers(data: Metier[] | PaginatedResponse<Metier>): Metier[] {
   if (Array.isArray(data)) {
@@ -43,13 +29,7 @@ export const ArtisansList: React.FC = () => {
     previous: null as string | null,
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [filters, setFilters] = useState({
-    search: '',
-    metier: '',
-    ville: '',
-    secteur: '',
-  });
-  const [searchInput, setSearchInput] = useState('');
+  const [selectedMetier, setSelectedMetier] = useState('');
 
   useEffect(() => {
     loadMetiers();
@@ -57,7 +37,7 @@ export const ArtisansList: React.FC = () => {
 
   useEffect(() => {
     loadArtisans(currentPage);
-  }, [currentPage, filters]);
+  }, [currentPage, selectedMetier]);
 
   const loadMetiers = async () => {
     try {
@@ -73,11 +53,9 @@ export const ArtisansList: React.FC = () => {
     try {
       const params = new URLSearchParams();
       params.append('page', page.toString());
-
-      if (filters.search) params.append('search', filters.search);
-      if (filters.metier) params.append('metier', filters.metier);
-      if (filters.ville) params.append('ville', filters.ville);
-      if (filters.secteur) params.append('secteur', filters.secteur);
+      if (selectedMetier) {
+        params.append('metier', selectedMetier);
+      }
 
       const data = await api.get<PaginatedResponse<Artisan>>(`/artisans/?${params.toString()}`);
       setArtisans(data.results);
@@ -94,32 +72,13 @@ export const ArtisansList: React.FC = () => {
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFilters({ ...filters, search: searchInput });
-    setCurrentPage(1);
-  };
-
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters({ ...filters, [key]: value });
-    setCurrentPage(1);
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      search: '',
-      metier: '',
-      ville: '',
-      secteur: '',
-    });
-    setSearchInput('');
+  const selectMetier = (metier: string) => {
+    setSelectedMetier(metier);
     setCurrentPage(1);
   };
 
   const totalPages = Math.ceil(pagination.count / 10);
-  const hasActiveFilters = Object.values(filters).some((value) => value !== '');
-  const activeFiltersCount = Object.values(filters).filter((value) => value !== '').length;
-  const metierOptions = Array.isArray(metiers) ? metiers : [];
+  const hasActiveFilters = Boolean(selectedMetier);
 
   return (
     <div className="min-h-screen bg-background">
@@ -128,83 +87,71 @@ export const ArtisansList: React.FC = () => {
           <p className="text-sm font-medium uppercase tracking-wide text-secondary">
             Trouver un artisan local
           </p>
-          <h1 className="mt-2 text-4xl leading-tight">Artisans proches de vous</h1>
+          <h1 className="mt-2 text-4xl leading-tight">Choisissez un metier</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            Comparez les profils, voyez leurs specialites et contactez la bonne personne en
-            quelques clics.
+            1. Choisir un metier 2. Ouvrir un profil 3. Appuyer sur WhatsApp.
           </p>
           <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-secondary/25 bg-card px-3 py-1 text-sm text-muted-foreground">
             <Sparkles className="h-4 w-4 text-secondary" />
-            Contact en 3 actions: choisir, ouvrir le profil, appeler.
+            Contact direct sans formulaire long.
           </div>
         </section>
 
         <section className="mb-8 rounded-2xl border border-border/70 bg-card/95 p-4 shadow-sm sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Filter className="h-5 w-5 text-muted-foreground" />
-              <h2 className="text-xl font-semibold">Filtres</h2>
+              <h2 className="text-xl font-semibold">Quel service ?</h2>
             </div>
             {hasActiveFilters ? (
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                {activeFiltersCount} actif{activeFiltersCount > 1 ? 's' : ''}
-              </span>
+              <Button variant="ghost" className="h-9 px-3" onClick={() => selectMetier('')}>
+                Tout afficher
+              </Button>
             ) : null}
           </div>
 
-          <form onSubmit={handleSearch} className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <Input
-              placeholder="Nom, metier, telephone..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="h-11 bg-background"
-            />
-            <Button type="submit" className="h-11 px-5">
-              <Search className="h-4 w-4" />
-              Rechercher
-            </Button>
-          </form>
-
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Select
-              value={filters.metier || 'all'}
-              onValueChange={(value) =>
-                handleFilterChange('metier', value === 'all' ? '' : value)
-              }
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <Button
+              type="button"
+              variant={!selectedMetier ? 'default' : 'outline'}
+              className="h-auto min-h-24 flex-col gap-2 rounded-2xl py-4 text-sm"
+              onClick={() => selectMetier('')}
             >
-              <SelectTrigger className="h-11 bg-background">
-                <SelectValue placeholder="Tous les metiers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les metiers</SelectItem>
-                {metierOptions.map((metier) => (
-                  <SelectItem key={metier.id} value={metier.nom}>
-                    {metier.nom}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Input
-              placeholder="Ville"
-              value={filters.ville}
-              onChange={(e) => handleFilterChange('ville', e.target.value)}
-              className="h-11 bg-background"
-            />
-
-            <Input
-              placeholder="Secteur"
-              value={filters.secteur}
-              onChange={(e) => handleFilterChange('secteur', e.target.value)}
-              className="h-11 bg-background"
-            />
-          </div>
-
-          {hasActiveFilters ? (
-            <Button variant="ghost" className="mt-4 h-10 px-3" onClick={resetFilters}>
-              Reinitialiser les filtres
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-card/20">
+                <Filter className="h-5 w-5" />
+              </span>
+              Tous les metiers
             </Button>
-          ) : null}
+
+            {metiers.map((metier) => {
+              const selected = selectedMetier === metier.nom;
+              const { icon: Icon, toneClass } = getMetierVisual(metier.nom);
+
+              return (
+                <Button
+                  key={metier.id}
+                  type="button"
+                  variant={selected ? 'default' : 'outline'}
+                  className="relative h-auto min-h-24 flex-col gap-2 rounded-2xl py-4 text-sm"
+                  onClick={() => selectMetier(metier.nom)}
+                >
+                  {selected ? (
+                    <span className="absolute right-2 top-2 rounded-full bg-white/20 p-1">
+                      <Check className="h-3 w-3" />
+                    </span>
+                  ) : null}
+                  <span
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${
+                      selected ? 'bg-white/20 text-white' : toneClass
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="line-clamp-2 leading-tight">{metier.nom}</span>
+                </Button>
+              );
+            })}
+          </div>
         </section>
 
         {loading ? (
@@ -215,11 +162,11 @@ export const ArtisansList: React.FC = () => {
             title="Aucun artisan trouve"
             description={
               hasActiveFilters
-                ? 'Aucun artisan ne correspond a vos criteres de recherche.'
+                ? 'Aucun artisan disponible pour ce metier.'
                 : "Aucun artisan n'est encore inscrit."
             }
-            actionLabel={hasActiveFilters ? 'Reinitialiser les filtres' : undefined}
-            onAction={hasActiveFilters ? resetFilters : undefined}
+            actionLabel={hasActiveFilters ? 'Voir tous les metiers' : undefined}
+            onAction={hasActiveFilters ? () => selectMetier('') : undefined}
           />
         ) : (
           <>
@@ -293,3 +240,4 @@ export const ArtisansList: React.FC = () => {
     </div>
   );
 };
+

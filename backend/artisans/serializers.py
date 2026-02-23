@@ -175,6 +175,7 @@ class CommentaireSerializer(serializers.ModelSerializer):
 
 class RealisationSerializer(serializers.ModelSerializer):
     artisan_username = serializers.CharField(source="artisan.username", read_only=True)
+    artisan_phone = serializers.CharField(source="artisan.phone", read_only=True)
     artisan_photo = serializers.SerializerMethodField()
     likes_count = serializers.SerializerMethodField()
     commentaires_count = serializers.SerializerMethodField()
@@ -188,6 +189,7 @@ class RealisationSerializer(serializers.ModelSerializer):
             "id",
             "artisan",
             "artisan_username",
+            "artisan_phone",
             "artisan_photo",
             "titre",
             "description",

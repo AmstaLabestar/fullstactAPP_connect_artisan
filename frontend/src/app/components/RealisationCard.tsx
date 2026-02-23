@@ -4,10 +4,12 @@ import { Calendar, Heart, MessageCircle, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Realisation } from '../types';
+import { buildWhatsAppLink } from '../services/whatsapp';
 import { Card, CardContent, CardFooter } from './ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { WhatsAppButton } from './ui/WhatsAppButton';
 
 interface RealisationCardProps {
   realisation: Realisation;
@@ -18,6 +20,13 @@ export const RealisationCard: React.FC<RealisationCardProps> = ({
   realisation,
   onLike,
 }) => {
+  const whatsappLink = realisation.artisan_phone
+    ? buildWhatsAppLink(
+        realisation.artisan_phone,
+        `Bonjour ${realisation.artisan_username}, j ai vu votre realisation ${realisation.titre} sur Artisan Connect.`
+      )
+    : '';
+
   return (
     <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-xl">
       <Link to={`/realisations/${realisation.id}`} className="block">
@@ -88,12 +97,21 @@ export const RealisationCard: React.FC<RealisationCardProps> = ({
           </span>
         </div>
 
-        <Button variant="outline" size="sm" className="h-9 px-3 text-sm" asChild>
-          <Link to={`/artisans/${realisation.artisan}`}>
-            Contacter
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
+        {whatsappLink ? (
+          <WhatsAppButton
+            href={whatsappLink}
+            label="WhatsApp"
+            size="sm"
+            className="h-9 px-3 text-sm"
+          />
+        ) : (
+          <Button variant="outline" size="sm" className="h-9 px-3 text-sm" asChild>
+            <Link to={`/artisans/${realisation.artisan}`}>
+              Contacter
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

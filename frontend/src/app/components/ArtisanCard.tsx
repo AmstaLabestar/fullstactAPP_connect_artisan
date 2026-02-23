@@ -1,18 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router';
-import {
-  ArrowRight,
-  Briefcase,
-  Mail,
-  MapPin,
-  MessageCircle,
-  Phone,
-} from 'lucide-react';
+import { ArrowRight, Briefcase, MapPin, Phone } from 'lucide-react';
 import { Artisan } from '../types';
+import { buildWhatsAppLink } from '../services/whatsapp';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
+import { WhatsAppButton } from './ui/WhatsAppButton';
 
 interface ArtisanCardProps {
   artisan: Artisan;
@@ -20,7 +15,10 @@ interface ArtisanCardProps {
 
 export const ArtisanCard: React.FC<ArtisanCardProps> = ({ artisan }) => {
   const metiers = Array.isArray(artisan.metiers) ? artisan.metiers : [];
-  const quoteLink = `mailto:${artisan.email}?subject=${encodeURIComponent(`Demande de devis - ${artisan.username}`)}`;
+  const whatsappLink = buildWhatsAppLink(
+    artisan.phone,
+    `Bonjour ${artisan.username}, j ai besoin de votre service.`
+  );
 
   return (
     <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-xl">
@@ -73,25 +71,26 @@ export const ArtisanCard: React.FC<ArtisanCardProps> = ({ artisan }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <Button className="h-11 justify-center text-sm" asChild>
-            <a href={`tel:${artisan.phone}`}>
-              <Phone className="h-4 w-4" />
-              Appeler
-            </a>
-          </Button>
-          <Button variant="outline" className="h-11 justify-center text-sm" asChild>
-            <a href={`mailto:${artisan.email}`}>
-              <Mail className="h-4 w-4" />
-              Contacter
-            </a>
-          </Button>
-          <Button variant="secondary" className="h-11 justify-center text-sm" asChild>
-            <a href={quoteLink}>
-              <MessageCircle className="h-4 w-4" />
-              Demander un devis
-            </a>
-          </Button>
+        <div className="space-y-2 pt-1">
+          <WhatsAppButton
+            href={whatsappLink}
+            label="WhatsApp"
+            className="h-12 w-full justify-center text-sm font-semibold"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" className="h-10 justify-center text-sm" asChild>
+              <a href={`tel:${artisan.phone}`}>
+                <Phone className="h-4 w-4" />
+                Appeler
+              </a>
+            </Button>
+            <Button variant="ghost" className="h-10 justify-center text-sm" asChild>
+              <Link to={`/artisans/${artisan.id}`}>
+                Profil
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
